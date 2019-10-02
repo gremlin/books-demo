@@ -1,0 +1,13 @@
+apply plugin: 'org.springframework.boot'
+
+dependencies {
+    compile project(":model")
+
+    compile group: "com.gremlin", name:"alfi-http-servlet-filter", version: "0.7.2"
+    compile("org.springframework.boot:spring-boot-starter-web")
+}
+
+bootJar {
+    baseName = 'recommendations-demo'
+    version =  '1.0.0'
+}

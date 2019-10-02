@@ -1,0 +1,30 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:2.1.6.RELEASE")
+    }
+}
+
+subprojects {
+    repositories {
+        mavenCentral()
+        maven {
+            url "https://maven.gremlin.com"
+        }
+    }
+
+    apply plugin: 'java'
+    apply plugin: 'eclipse'
+    apply plugin: 'idea'
+    apply plugin: 'io.spring.dependency-management'
+
+    dependencies {
+        compile group: "com.gremlin", name:"alfi-core", version: "0.7.2"
+    }
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+}
+

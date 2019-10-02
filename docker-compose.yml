@@ -1,0 +1,77 @@
+version: '3'
+
+services:
+  users:
+    build:
+      context: ./user
+    environment:
+      - GREMLIN_ALFI_ENABLED=true
+      - GREMLIN_ALFI_IDENTIFIER=jaxlondon-demo-users
+      - GREMLIN_TEAM_ID
+      - GREMLIN_TEAM_CERTIFICATE_OR_FILE=file:///credentials/alfi-cert.pem
+      - GREMLIN_TEAM_PRIVATE_KEY_OR_FILE=file:///credentials/alfi-private-key.pem
+    deploy:
+      resources:
+        limits:
+          cpus: "0.7"
+          memory: 750m
+    ports:
+      - 8091:8080
+      - 11112:11111
+    volumes:
+      - ~/.gremlin:/credentials
+  recommendations:
+    build:
+      context: ./recommendations
+    environment:
+      - GREMLIN_ALFI_ENABLED=true
+      - GREMLIN_ALFI_IDENTIFIER=jaxlondon-demo-recommendations
+      - GREMLIN_TEAM_ID
+      - GREMLIN_TEAM_CERTIFICATE_OR_FILE=file:///credentials/alfi-cert.pem
+      - GREMLIN_TEAM_PRIVATE_KEY_OR_FILE=file:///credentials/alfi-private-key.pem
+    deploy:
+      resources:
+        limits:
+          cpus: "0.8"
+          memory: 1000m
+    ports:
+      - 8092:8080
+      - 11113:11111
+    volumes:
+      - ~/.gremlin:/credentials
+  api:
+    build:
+      context: ./api
+    environment:
+      - GREMLIN_ALFI_ENABLED=true
+      - GREMLIN_ALFI_IDENTIFIER=jaxlondon-demo-api
+      - GREMLIN_TEAM_ID
+      - GREMLIN_TEAM_CERTIFICATE_OR_FILE=file:///credentials/alfi-cert.pem
+      - GREMLIN_TEAM_PRIVATE_KEY_OR_FILE=file:///credentials/alfi-private-key.pem
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2000m
+    ports:
+      - 8090:8080
+      - 11111:11111
+    volumes:
+      - ~/.gremlin:/credentials
+  datadog:
+    links:
+      - api
+      - users
+      - recommendations
+    image: datadog/agent:latest
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 500m
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/mounts:/host/proc/mounts:ro
+      - /sys/fs/cgroup:/hosts/sys/fs/cgroup:ro

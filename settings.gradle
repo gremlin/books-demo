@@ -1,0 +1,3 @@
+rootProject.name = "mjacobs-jaxlondon-demo"
+
+include 'asyncclient', 'client', 'concurrency', 'model', 'recommendations', 'user', 'api'
