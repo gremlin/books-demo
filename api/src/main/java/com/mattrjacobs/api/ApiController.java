@@ -45,10 +45,24 @@ public class ApiController {
     @Value("${users.concurrency.limit}")
     private String usersConcurrencyLimitString;
 
+    @Value("${users.http.connect.timeout}")
+    private String usersHttpConnectTimeoutString;
+
+    @Value("${users.http.read.timeout}")
+    private String usersHttpReadTimeoutString;
+
     @Value("${recs.concurrency.limit}")
     private String recommendationsConcurrencyLimitString;
 
+    @Value("${recs.http.connect.timeout}")
+    private String recommendationsHttpConnectTimeoutString;
+
+    @Value("${recs.http.read.timeout}")
+    private String recommendationsHttpReadTimeoutString;
+
     private final static int DEFAULT_CONCURRENCY_LIMIT = Integer.MAX_VALUE;
+    private final static int DEFAULT_HTTP_CONNECT_TIMEOUT = 1000;
+    private final static int DEFAULT_HTTP_READ_TIMEOUT = 20000;
 
     private final static HttpHost S3_FALLBACK_HOST = HttpHost.create("https://mjacobs-jaxlondon-fallback-data.s3-us-west-1.amazonaws.com");
     private final static HttpHost USERS_HOST = HttpHost.create("http://host.docker.internal:8091");
@@ -56,9 +70,11 @@ public class ApiController {
 
     private final static String FALLBACK_CSV = "/most-popular-books.csv";
 
-    private final CloseableHttpClient s3FallbackClient;
-    private final CloseableHttpClient userHttpClient;
-    private final CloseableHttpClient recommendationsHttpClient;
+    private CloseableHttpClient s3FallbackClient;
+    private CloseableHttpClient userHttpClient;
+    private CloseableHttpClient recommendationsHttpClient;
+
+    private final GremlinService alfi;
 
     private final PoolingHttpClientConnectionManager userConnManager = new PoolingHttpClientConnectionManager();
     private final PoolingHttpClientConnectionManager recommendationsConnManager = new PoolingHttpClientConnectionManager();
@@ -94,23 +110,35 @@ public class ApiController {
         }
     };
 
+    private int readIntFromProperty(final String value, final int defaultValue) {
+        return Optional.ofNullable(value).flatMap(s -> {
+            try {
+                return Optional.of(Integer.parseInt(s));
+            } catch (final NumberFormatException nfe) {
+                return Optional.empty();
+            }
+        }).orElse(defaultValue);
+    }
+
     @PostConstruct
     public void setUp() {
-        final int usersConcurrencyLimit = Optional.ofNullable(usersConcurrencyLimitString).flatMap(s -> {
-            try {
-                return Optional.of(Integer.parseInt(s));
-            } catch (final NumberFormatException nfe) {
-                return Optional.empty();
-            }
-        }).orElse(DEFAULT_CONCURRENCY_LIMIT);
+        final int usersConcurrencyLimit = readIntFromProperty(usersConcurrencyLimitString, DEFAULT_CONCURRENCY_LIMIT);
+        final int usersHttpConnectTimeout = readIntFromProperty(usersHttpConnectTimeoutString, DEFAULT_HTTP_CONNECT_TIMEOUT);
+        final int usersHttpReadTimeout = readIntFromProperty(usersHttpReadTimeoutString, DEFAULT_HTTP_READ_TIMEOUT);
 
-        final int recommendationsConcurrencyLimit = Optional.ofNullable(recommendationsConcurrencyLimitString).flatMap(s -> {
-            try {
-                return Optional.of(Integer.parseInt(s));
-            } catch (final NumberFormatException nfe) {
-                return Optional.empty();
-            }
-        }).orElse(DEFAULT_CONCURRENCY_LIMIT);
+        final RequestConfig usersHttpRequestConfig = RequestConfig.custom()
+                .setConnectTimeout(usersHttpConnectTimeout)
+                .setSocketTimeout(usersHttpReadTimeout)
+                .build();
+
+        final int recommendationsConcurrencyLimit = readIntFromProperty(recommendationsConcurrencyLimitString, DEFAULT_CONCURRENCY_LIMIT);
+        final int recommendationsHttpConnectTimeout = readIntFromProperty(recommendationsHttpConnectTimeoutString, DEFAULT_HTTP_CONNECT_TIMEOUT);
+        final int recommendationsHttpReadTimeout = readIntFromProperty(recommendationsHttpReadTimeoutString, DEFAULT_HTTP_READ_TIMEOUT);
+
+        final RequestConfig recommendationsHttpRequestConfig = RequestConfig.custom()
+                .setConnectTimeout(recommendationsHttpConnectTimeout)
+                .setSocketTimeout(recommendationsHttpReadTimeout)
+                .build();
 
         this.usersSemaphore = CountingSemaphore.sized(usersConcurrencyLimit);
         this.recommendationsSemaphore = CountingSemaphore.sized(recommendationsConcurrencyLimit);
@@ -123,11 +151,31 @@ public class ApiController {
             }
         }).orElse(false);
 
+        final RequestConfig s3HttpRequestConfig = RequestConfig.custom()
+                .setConnectTimeout(DEFAULT_HTTP_CONNECT_TIMEOUT)
+                .setSocketTimeout(DEFAULT_HTTP_READ_TIMEOUT)
+                .build();
+
+        s3FallbackClient = HttpClientBuilder.create()
+                .setDefaultRequestConfig(s3HttpRequestConfig)
+                .build();
+
         if (shouldUseS3Fallback) {
             this.fallbackBookRecommendationList = getFallbackData();
         } else {
             this.fallbackBookRecommendationList = Optional.empty();
         }
+
+        userHttpClient = HttpClientBuilder.create()
+                .setDefaultRequestConfig(usersHttpRequestConfig)
+                .setConnectionManager(userConnManager)
+                .addInterceptorLast(new GremlinApacheHttpRequestInterceptor(alfi, "users"))
+                .build();
+        recommendationsHttpClient = HttpClientBuilder.create()
+                .setDefaultRequestConfig(recommendationsHttpRequestConfig)
+                .setConnectionManager(recommendationsConnManager)
+                .addInterceptorLast(new GremlinApacheHttpRequestInterceptor(alfi, "recommendations"))
+                .build();
     }
 
     ApiController() {
@@ -141,10 +189,6 @@ public class ApiController {
                         .build();
             }
         };
-        final RequestConfig requestConfig = RequestConfig.custom()
-                .setConnectTimeout(100)
-                .setSocketTimeout(20000)
-                .build();
 
         userConnManager.setMaxTotal(2000);
         userConnManager.setDefaultMaxPerRoute(2000);
@@ -155,36 +199,19 @@ public class ApiController {
         recommendationsConnManager.setMaxPerRoute(new HttpRoute(RECOMMENDATIONS_HOST), 2000);
 
         final GremlinServiceFactory alfiFactory = new GremlinServiceFactory(alfiCoordinatesProvider);
-        final GremlinService alfi = alfiFactory.getGremlinService();
-        userHttpClient = HttpClientBuilder.create()
-                .setDefaultRequestConfig(requestConfig)
-                .setConnectionManager(userConnManager)
-                .addInterceptorLast(new GremlinApacheHttpRequestInterceptor(alfi, "users"))
-                .build();
-        recommendationsHttpClient = HttpClientBuilder.create()
-                .setDefaultRequestConfig(requestConfig)
-                .setConnectionManager(recommendationsConnManager)
-                .addInterceptorLast(new GremlinApacheHttpRequestInterceptor(alfi, "recommendations"))
-                .build();
+        this.alfi = alfiFactory.getGremlinService();
 
-        s3FallbackClient = HttpClientBuilder.create()
-                .setDefaultRequestConfig(requestConfig)
-                .build();
     }
 
     @RequestMapping("/recommendations/{token}")
     public BookRecommendationList getRecommendationsFromUserToken(@PathVariable(value = "token") String token) throws IOException {
-        //final long startTime = System.currentTimeMillis();
-        //final long preUsers = System.currentTimeMillis();
         try {
             final long userId = usersSemaphore.wrap(() -> {
                 final HttpUriRequest usersRequest = new HttpGet(USERS_HOST + "/users/" + token);
-                //System.out.println(System.currentTimeMillis() + " : " + Thread.currentThread().getName() + " Making the users HTTP call");
                 final User user = userHttpClient.execute(usersRequest, usersResponseHandler);
                 return user.getId();
             });
 
-            //final long postUsers = System.currentTimeMillis();
             return recommendationsSemaphore.wrap(() -> {
                 final HttpUriRequest recsRequest = new HttpGet(RECOMMENDATIONS_HOST + "/recommendations/" + userId);
                 return recommendationsHttpClient.execute(recsRequest, recommendationResponseHandler);
