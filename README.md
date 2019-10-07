@@ -10,4 +10,4 @@ Demo app that sets up a 3-service system and integrates ALFI and Datadog APM
 # Steps to get running
 * `gradlew clean build` - this will build the JARs 
 * `docker-compose build` - this will turn the JARs into Docker images locally
-* `docker --compatibility up` - this will start all of the Docker images of services and the Datadog agent
+* `docker-compose --compatibility up` - this will start all of the Docker images of services and the Datadog agent.  The compatibility flag applies the memory/CPU limits, so that failures happen in a known way, regardless of the place you run this demo
