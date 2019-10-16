@@ -64,7 +64,7 @@ public class ApiController {
     private final static int DEFAULT_HTTP_CONNECT_TIMEOUT = 1000;
     private final static int DEFAULT_HTTP_READ_TIMEOUT = 20000;
 
-    private final static HttpHost S3_FALLBACK_HOST = HttpHost.create("https://mjacobs-jaxlondon-fallback-data.s3-us-west-1.amazonaws.com");
+    private final static HttpHost S3_FALLBACK_HOST = HttpHost.create("https://jax-demo.gremlin.com");
     private final static HttpHost USERS_HOST = HttpHost.create("http://host.docker.internal:8091");
     private final static HttpHost RECOMMENDATIONS_HOST = HttpHost.create("http://host.docker.internal:8092");
 
