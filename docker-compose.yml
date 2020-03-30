@@ -7,9 +7,9 @@ services:
     environment:
       - GREMLIN_ALFI_ENABLED=true
       - GREMLIN_ALFI_IDENTIFIER=jaxlondon-demo-users
-      - GREMLIN_TEAM_ID
-      - GREMLIN_TEAM_CERTIFICATE_OR_FILE=file:///credentials/alfi-cert.pem
-      - GREMLIN_TEAM_PRIVATE_KEY_OR_FILE=file:///credentials/alfi-private-key.pem
+      - GREMLIN_TEAM_ID=${GREMLIN_TEAM_ID}
+      - GREMLIN_TEAM_CERTIFICATE_OR_FILE=file:///credentials/cert.pem
+      - GREMLIN_TEAM_PRIVATE_KEY_OR_FILE=file:///credentials/priv.pem
     deploy:
       resources:
         limits:
@@ -26,9 +26,9 @@ services:
     environment:
       - GREMLIN_ALFI_ENABLED=true
       - GREMLIN_ALFI_IDENTIFIER=jaxlondon-demo-recommendations
-      - GREMLIN_TEAM_ID
-      - GREMLIN_TEAM_CERTIFICATE_OR_FILE=file:///credentials/alfi-cert.pem
-      - GREMLIN_TEAM_PRIVATE_KEY_OR_FILE=file:///credentials/alfi-private-key.pem
+      - GREMLIN_TEAM_ID=${GREMLIN_TEAM_ID}
+      - GREMLIN_TEAM_CERTIFICATE_OR_FILE=file:///credentials/cert.pem
+      - GREMLIN_TEAM_PRIVATE_KEY_OR_FILE=file:///credentials/priv.pem
     deploy:
       resources:
         limits:
@@ -45,9 +45,9 @@ services:
     environment:
       - GREMLIN_ALFI_ENABLED=true
       - GREMLIN_ALFI_IDENTIFIER=jaxlondon-demo-api
-      - GREMLIN_TEAM_ID
-      - GREMLIN_TEAM_CERTIFICATE_OR_FILE=file:///credentials/alfi-cert.pem
-      - GREMLIN_TEAM_PRIVATE_KEY_OR_FILE=file:///credentials/alfi-private-key.pem
+      - GREMLIN_TEAM_ID=${GREMLIN_TEAM_ID}
+      - GREMLIN_TEAM_CERTIFICATE_OR_FILE=file:///credentials/cert.pem
+      - GREMLIN_TEAM_PRIVATE_KEY_OR_FILE=file:///credentials/priv.pem
     deploy:
       resources:
         limits:
