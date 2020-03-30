@@ -21,7 +21,7 @@ subprojects {
     apply plugin: 'io.spring.dependency-management'
 
     dependencies {
-        compile group: "com.gremlin", name:"alfi-core", version: "0.7.2"
+        compile group: "com.gremlin", name:"alfi-core", version: "0.7.3"
     }
 
     sourceCompatibility = 1.8
